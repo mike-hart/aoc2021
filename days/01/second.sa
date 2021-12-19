@@ -1,0 +1,40 @@
+class MAIN is
+	private ints_from_stdin: ARRAY{INT} is
+		ints: LIST{INT} := #;
+		loop
+			line ::= #IN.get_str;
+			if (line = "") then break!; end;
+			ints.append(#INT(line));
+		end;
+		return ARRAY{INT}::create_from(ints);
+	end;
+
+	private windowed!(once window_size: INT): INT is
+		ints ::= ints_from_stdin;
+		loop
+			i:INT := 0.upto!(ints.size - window_size);
+			yield ints.subarr(i, window_size).reduce(bind(_.plus(_)));
+		end;
+	end;
+
+	private pairwise_from_stdin!:TUP{INT, INT} is
+		last ::= INT::nil;
+		loop
+			cur ::= windowed!(3);
+			if ~last.is_nil then
+				yield #TUP{INT,INT}(last, cur);
+			end;
+			last := cur;
+		end;
+	end;
+
+	main is
+		count ::= 0;
+		loop
+			pair ::= pairwise_from_stdin!;
+			count := count + (pair.t2 > pair.t1).int;
+			#OUT + pair.str + "\n";
+		end;
+		#OUT + count + "\n";
+	end;
+end;
