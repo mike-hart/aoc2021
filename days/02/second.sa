@@ -1,0 +1,28 @@
+class MAIN is
+	private commands_from_stdin!:TUP{STR, INT} is
+		loop
+			line ::= #IN.get_str;
+			if (line = "") then quit; end;
+			curs ::= line.cursor;
+			command ::= curs.get_up_to(' ');
+			amount ::= #INT(curs.get_int);
+			yield #TUP{STR, INT}(command, amount);
+		end;
+	end;
+
+	main is
+		aim ::= 0;
+		depth ::= 0;
+		horiz ::= 0;
+		loop
+			cmd ::= commands_from_stdin!;
+			#OUT + cmd.str + "\n";
+			case cmd.t1
+			when "forward" then horiz := horiz + cmd.t2; depth := depth + (aim * cmd.t2);
+			when "down" then aim := aim + cmd.t2;
+			when "up" then aim := aim - cmd.t2;
+			end;
+		end;
+		#OUT + (depth * horiz) + "\n";
+	end;
+end;
