@@ -1,0 +1,41 @@
+class MAIN is
+	private counts_from_stdin:TUP{INT, ARRAY{INT}} is
+	end;
+
+	main is
+		-- Build a list of the numerical value of the rows (keeping a
+		-- list so we also retain the total number of elements
+		rows ::= #LIST{INT};
+		width ::= 0;
+		loop
+			line ::= #IN.get_str;
+			width := width.at_least(line.length);
+			if (line = "") then break!; end;
+			-- Sadly get_unsigned_unprefixed_binary is private, so
+			-- we have to prefix with "0b" so get_binary will parse
+			-- correctly
+			rows.append(("0b" + line).cursor.get_binary);
+		end;
+
+		gamma ::= 0;
+		loop
+			i ::= width.times!;
+			one_count ::= 0;
+			loop
+				row ::= rows.elt!;
+				one_count := one_count + row.bit(i).int;
+			end;
+			-- if this is the most common bit, set it, we could
+			-- have reduced this to a single function call, but that's
+			-- just ugh!
+			if one_count > (rows.size / 2) then
+				gamma := gamma.aset(i, true);
+			end;
+		end;
+		-- Epsilon is the bitwise inverse of gamma, but only to the
+		-- width of the input (5 bits)
+		epsilon ::= (1.lshift(width) - 1) - gamma;
+
+		#OUT + (gamma * epsilon) + "\n";
+	end;
+end;
