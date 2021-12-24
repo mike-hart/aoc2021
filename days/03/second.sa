@@ -1,0 +1,49 @@
+class MAIN is
+	has_most_common (counts: ARRAY{INT}, bit:BOOL):BOOL is
+		return (counts[bit.int] > counts[bit.not.int]) or (bit and (counts[0] = counts[1]));
+	end;
+
+	has_least_common (counts: ARRAY{INT}, bit:BOOL):BOOL is
+		return (counts[bit.int] < counts[bit.not.int]) or (bit.not and (counts[0] = counts[1]));
+	end;
+
+	reduce (items: LIST{INT}, high_bit: INT, test:ROUT{ARRAY{INT}, BOOL}:BOOL):INT is
+		loop
+			while!( items.size /= 1 );
+
+			position ::= (high_bit - 1).downto!(0);
+
+			counts: ARRAY{INT} := |0, 0|;
+			loop
+				row ::= items.elt!;
+				bit_value ::= row.bit(position).int;
+				counts[bit_value] := counts[bit_value] + 1;
+			end;
+
+			new_items ::= #LIST{INT};
+			loop
+				item ::= items.elt!;
+				if test.call(counts, item.bit(position)) then new_items.append(item) end;
+			end;
+
+			items := new_items;
+		end;
+		return items[0];
+	end;
+
+	main is
+		rows ::= #LIST{INT};
+		width ::= 0;
+		loop
+			line ::= #IN.get_str;
+			width := width.at_least(line.length);
+			if (line = "") then break!; end;
+			rows.append(("0b" + line).cursor.get_binary);
+		end;
+
+		oxy_rating ::= reduce(rows, width, bind(has_most_common(_, _)));
+		scrub_rating ::= reduce(rows, width, bind(has_least_common(_, _)));
+
+		#OUT + oxy_rating + "\t" + scrub_rating + "\t" + (oxy_rating * scrub_rating) + "\n";
+	end;
+end;
