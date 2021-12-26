@@ -1,0 +1,135 @@
+class BOARD is
+	private attr card: ARRAY2{INT};
+	private attr found: ARRAY2{BOOL};
+
+	create(values: ARRAY2{INT}):SAME is
+		res:SAME := new;
+		res.card := values.copy;
+		res.found := #(values.nr, values.nc);
+		loop
+			res.found.set!(false);
+		end;
+		return res;
+	end;
+
+	match(v: INT): BOOL is
+		matching_entry_pos: TUP{INT, INT};
+		loop
+			row_ind ::= card.row_ind!;
+			loop
+				col_ind ::= card.col_ind!;
+				if v = card.aget(row_ind, col_ind) then
+					found.aset(row_ind, col_ind, true);
+					matching_entry_pos := #(row_ind, col_ind);
+					b:BOOL;
+
+					-- check row of match for completion
+					b := true;
+					loop
+						b := b and found.row_elt!(matching_entry_pos.t1);
+						while!(b);
+					end;
+					if b then return true; end;
+
+					-- check column of match for completion
+					b := true;
+					loop
+						b := b and found.col_elt!(matching_entry_pos.t2);
+						while!(b);
+					end;
+					if b then return true; end;
+				end;
+			end;
+		end;
+		return false;
+	end;
+
+	winnings: INT is
+		-- the sum of all entries not previously called
+		sum ::= 0;
+		loop
+			v ::= card.elt!;
+			if ~found.elt! then
+				sum := sum + v;
+			end;
+		end;
+		return sum;
+	end;
+end;
+
+class MAIN is
+	private get_row(line: STR): ARRAY{INT}
+	pre line.size > 0
+	is
+		curs ::= line.cursor;
+		entries ::= #LIST{INT};
+		loop
+			curs.skip_space;
+			v ::= curs.get_int;
+			while!(~curs.has_error);
+			entries.append(v);
+		end;
+
+		row ::= #ARRAY{INT}(entries.size);
+		loop
+			row.aset(entries.ind!, entries.elt!);
+		end;
+
+		return row;
+	end;
+
+	private get_board: BOARD is
+		-- n rows of n space-separated entries per row
+		line ::= #IN.get_str;  -- row with (hopefully) some values
+		assert line.size > 0;
+		row ::= get_row(line);
+		values:ARRAY{ARRAY{INT}} := #(row.size);
+		values[0] := row;
+		loop
+			i ::= 1.upto!(row.size - 1);
+			values[i] := get_row(#IN.get_str);
+		end;
+		return #BOARD(#ARRAY2{INT}(values));
+	end;
+
+	private check_boards(v: INT, boards: LIST{BOARD}): BOARD is
+		loop
+			b ::= boards.elt!;
+			if b.match(v) then
+				return b;
+			end;
+		end;
+		return void;
+	end;
+
+	main is
+		boards ::= #LIST{BOARD};
+		numbers_called ::= #LIST{INT};
+
+		-- Get the numbers called
+		line ::= #IN.get_str;
+		str_entries ::= line.cursor.split(',');
+		loop
+			numbers_called.append(#INT(str_entries.elt!));
+		end;
+
+		board: BOARD;
+		-- build the boards
+		loop
+			line := #IN.get_str;  -- blank line per board
+			until!(#IN.eof);
+			boards.append(get_board);
+		end;
+
+		-- check the boards against the numbers
+		v: INT;
+		loop
+			v := numbers_called.elt!;
+			board := check_boards(v, boards);
+			until!(~void(board));
+		end;
+		assert ~void(board);
+		winnings ::= board.winnings;
+		#OUT + v + "\t" + winnings + "\t" + (v * winnings) + "\n";
+	end;
+end;
