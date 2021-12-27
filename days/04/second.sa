@@ -1,0 +1,136 @@
+class BOARD is
+	private attr card: ARRAY2{INT};
+	private attr found: ARRAY2{BOOL};
+
+	create(values: ARRAY2{INT}):SAME is
+		res:SAME := new;
+		res.card := values.copy;
+		res.found := #(values.nr, values.nc);
+		loop
+			res.found.set!(false);
+		end;
+		return res;
+	end;
+
+	call_value(v: INT): BOOL is
+		loop
+			row_ind ::= card.row_ind!;
+			loop
+				col_ind ::= card.col_ind!;
+				if v = card.aget(row_ind, col_ind) then
+					found.aset(row_ind, col_ind, true);
+					b:BOOL;
+
+					-- check row of match for completion
+					b := true;
+					loop
+						b := b.and_rout(found.row_elt!(row_ind));
+					end;
+					if b then
+						return true;
+					end;
+
+					-- check column of match for completion
+					b := true;
+					loop
+						b := b.and_rout(found.col_elt!(col_ind));
+					end;
+					if b then
+						return true;
+					end;
+				end;
+			end;
+		end;
+		return false;
+	end;
+
+	score: INT is
+		-- the sum of all entries not previously called
+		sum ::= 0;
+		loop
+			v ::= card.elt!;
+			if ~found.elt! then
+				sum := sum + v;
+			end;
+		end;
+		return sum;
+	end;
+end;
+
+class MAIN is
+	const board_size:INT := 5;
+
+	private get_row(line: STR): ARRAY{INT}
+	pre line.size > 0
+	is
+		curs ::= line.cursor;
+		row ::= #ARRAY{INT}(board_size);
+		loop
+			curs.skip_space;
+			row[row.ind!] := curs.get_int;
+			while!(~curs.has_error);
+		end;
+		return row;
+	end;
+
+	private get_board: BOARD is
+		-- 5 rows of 5 space-separated entries per row
+		board_values ::= #ARRAY2{INT}(board_size, board_size);
+		loop
+			r ::= 0.upto!(board_size - 1);
+			row ::= get_row(#IN.get_str);
+			loop
+				board_values[r, row.ind!] := row.elt!;
+			end;
+		end;
+		return #BOARD(board_values);
+	end;
+
+	private check_for_win(v: INT, input_boards: MAP{INT, BOARD}): LIST{INT} is
+		-- Take the value, check it against all remaining boards,
+		-- remove those boards from the list, adding their score to the
+		-- output list
+		board_scores ::= #LIST{INT};
+		loop
+			pair ::= input_boards.pair!;
+			board ::= pair.t2;
+			if board.call_value(v) then
+				input_boards.delete(pair.t1);
+				board_scores.append(board.score);
+			end;
+		end;
+		return board_scores;
+	end;
+
+	main is
+		boards ::= #MAP{INT, BOARD};
+		numbers_called ::= #LIST{INT};
+
+		-- Get the numbers called
+		line ::= #IN.get_str;
+		str_entries ::= line.cursor.split(',');
+		loop
+			numbers_called.append(#INT(str_entries.elt!));
+		end;
+
+		-- build the boards
+		loop
+			line := #IN.get_str;  -- blank line per board
+			until!(#IN.eof);
+			i ::= 0.up!;
+			boards[i] := get_board;
+		end;
+
+		-- check the boards against the numbers
+		last_winner: TUP{INT, INT};  -- (value causing win, board the win occurred on)
+		loop
+			v ::= numbers_called.elt!;
+			loop
+				score ::= check_for_win(v, boards).elt!;
+				last_winner := #(v, score);
+			end;
+			until!(boards.size = 0);  -- Early termination
+		end;
+		#OUT + (last_winner.t1 * last_winner.t2) + "\n";
+	end;
+end;
