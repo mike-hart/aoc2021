@@ -1,0 +1,132 @@
+immutable class POINT < $IS_LT{POINT}, $HASH, $STR is
+	include COMPARABLE;
+
+	readonly attr x, y:INT;
+
+	create(xvalue, yvalue:INT):POINT
+	-- For this implementation, since our hash is xoring over the values
+	-- directly, we're making sure the size of the values is small to reduce
+	-- the risk of value collision
+	pre xvalue < 65536 and yvalue < 65536
+	is
+		r:POINT;
+		return r.x(xvalue).y(yvalue);
+	end;
+
+	is_lt(other: SAME):BOOL is
+		return (x = other.x and y < other.y) or (y = other.y and x < other.x);
+	end;
+
+	is_eq(other: POINT):BOOL is
+		return x = other.x and y = other.y;
+	end;
+
+	hash:INT is
+		-- A simple hash value computed from the hash values of the
+		-- components (taken from stdlib TUP{_, _} implementation).
+		return x.bxor(y.lshift(8))
+	end;
+
+	str:STR is
+		return "(" + x.str + "," + y.str + ")";
+	end;
+end;
+
+
+immutable class SEGMENT < $STR is
+	readonly attr p1, p2: POINT;
+
+	create(a, b: POINT):SAME
+	pre a.x = b.x or a.y = b.y  -- no diagonals permitted
+	is
+		if a > b then
+			t ::= a;
+			a := b;
+			b := t;
+		end;
+		r: SAME;
+		return r.p1(a).p2(b);
+	end;
+
+	points_on_line!:POINT is
+		loop
+			x ::= p1.x.upto!(p2.x);
+			loop
+				y ::= p1.y.upto!(p2.y);
+				yield #POINT(x, y);
+			end;
+		end;
+	end;
+
+	intersects_at!(other:SAME):POINT is
+		loop
+			a ::= points_on_line!;
+			loop
+				b ::= other.points_on_line!;
+				if a = b then yield a; end;
+			end;
+		end;
+	end;
+
+	str:STR is
+		return p1.str + " -> " + p2.str;
+	end;
+end;
+
+
+class MAIN is
+
+	load_point(curs:STR_CURSOR):POINT is
+		x ::= curs.get_int;
+		curs.skip_over(",");
+		y ::= curs.get_int;
+		return #POINT(x, y);
+	end;
+
+	load_segments:LIST{SEGMENT} is
+		x, y: INT;
+		segments ::= #LIST{SEGMENT};
+		loop
+			line ::= #IN.get_str;
+			until!(#IN.eof);
+			curs ::= line.cursor;
+			-- get pair, convert to point
+			p1 ::= load_point(curs);
+			-- skip arrow " -> "
+			curs.skip_over(" -> ");
+			-- get pair, convert to point
+			p2 ::= load_point(curs);
+			-- skip diagonals
+			if p1.x = p2.x or p1.y = p2.y then
+				-- create segment
+				s ::= #SEGMENT(p1, p2);
+				-- add to list
+				segments.append(s);
+			end;
+		end;
+		return segments;
+	end;
+
+	main is
+		-- load line-segments (class for iteration)
+		segments:LIST{SEGMENT} := load_segments;
+		-- iterate from first through next-through-last
+		intersections ::= #SET{POINT};
+		loop
+			is1 ::= segments.ind!;
+			s1 ::= segments[is1];
+			loop
+				-- Consider all segments after is1
+				is2 ::= (is1 + 1).upto!(segments.size - 1);
+				s2 ::= segments[is2];
+				-- check all points in lines and yield intersection points (add to set)
+				loop
+					intersections.insert(s1.intersects_at!(s2));
+				end;
+			end;
+		end;
+		#OUT + intersections + "\n\n";
+		-- output count of set
+		#OUT + intersections.size + "\n";
+	end;
+end;
