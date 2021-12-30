@@ -1,0 +1,42 @@
+class MAIN is
+
+	private fuel_cost!(positions: ARRAY{INT}, position_to_reach: INT): INT is
+		loop
+			crab_position ::= positions.elt!;
+			yield (crab_position - position_to_reach).abs;
+		end;
+	end;
+
+	main is
+		-- load crab horizontal positions
+		inputs ::= #IN.get_str.cursor.split(',');
+		crab_positions ::= #ARRAY{INT}(inputs.size);
+		total ::= 0;
+		loop
+			entry ::= #INT(inputs.elt!);
+			crab_positions[inputs.ind!] := entry;
+			total := total + entry;
+		end;
+		average ::= total / crab_positions.size;
+		crab_positions.sort;
+		-- Turns out we can't just use the median like I was hoping,
+		-- esp. with an even number of entries. I have a feeling the
+		-- whole thing might have some tie also with the average,
+		-- but I don't know what the link is just yet. Something
+		-- _around_ the median seems to work and reduces this from a
+		-- total brute-force cost to something lesser.
+		midpoints ::= crab_positions.subarr(crab_positions.size / 2 - 1, 2 + (1 - crab_positions.size.mmod(2)));
+		total_cost: INT := INT::maxval;
+		loop
+			position_to_reach ::= midpoints.elt!;
+			-- sum the distances from median
+			cost ::= 0;
+			loop
+				cost := cost + fuel_cost!(crab_positions, position_to_reach);
+			end;
+			total_cost := total_cost.min(cost);
+		end;
+		-- Show the total
+		#OUT + total_cost + "\n";
+	end;
+end;
