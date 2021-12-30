@@ -1,0 +1,136 @@
+-- The first version of first.sa (which iterated over points on the line, brute
+-- force style) only worked because it only considered horizontal or vertical
+-- segments. When diagonals were introduced for this segment of the tast the
+-- earlier bug manifested itself (points on the line turned into "points within
+-- the box defined by the given coordinated defining corners", oops!)
+immutable class POINT < $IS_LT{POINT}, $HASH, $STR is
+	include COMPARABLE;
+
+	readonly attr x, y:INT;
+
+	create(xvalue, yvalue:INT):POINT
+	-- For this implementation, since our hash is xoring over the values
+	-- directly, we're making sure the size of the values is small to reduce
+	-- the risk of value collision
+	pre xvalue < 65536 and yvalue < 65536
+	is
+		r:POINT;
+		return r.x(xvalue).y(yvalue);
+	end;
+
+	is_lt(other: SAME):BOOL is
+		return (x < other.x) or (x = other.x and y < other.y);
+	end;
+
+	is_eq(other: POINT):BOOL is
+		return x = other.x and y = other.y;
+	end;
+
+	hash:INT is
+		-- Combine both the x and y into a single 32 bit value
+		return x.lshift(16).bor(y)
+	end;
+
+	str:STR is
+		return "POINT(" + x.str + "," + y.str + ")";
+	end;
+end;
+
+
+immutable class SEGMENT < $STR is
+	readonly attr p1, p2: POINT;
+	const tolerance:FLTD := 1.0e-5d;
+
+	create(a, b: POINT):SAME is
+		if a > b then
+			t ::= a;
+			a := b;
+			b := t;
+		end;
+		r: SAME;
+		return r.p1(a).p2(b);
+	end;
+
+	points_on_line!:POINT is
+		-- Since this code only deals with 45degree increment angles,
+		-- slope can either be 0 (y doesn't change), 1 (x and y shift in
+		-- unison), or infinite (x is fixed)
+		if p1.x = p2.x then
+			-- line slope is infinite (line is discontinuous)
+			if p1.y < p2.y then
+				loop yield #POINT(p1.x, p1.y.upto!(p2.y)); end;
+			else
+				loop yield #POINT(p1.x, p1.y.downto!(p2.y)); end;
+			end;
+		else
+			if p1.y = p2.y then
+				-- line slope is 0, y is fixed throughout
+				loop yield #POINT(p1.x.upto!(p2.x), p1.y); end;
+			else
+				-- slope is either 1 or -1
+				if p1.y < p2.y then
+					loop yield #POINT(p1.x.upto!(p2.x), p1.y.upto!(p2.y)); end;
+				else
+					loop yield #POINT(p1.x.upto!(p2.x), p1.y.downto!(p2.y)); end;
+				end;
+			end;
+		end;
+	end;
+
+	str:STR is
+		return p1.str + " -> " + p2.str;
+	end;
+end;
+
+
+class MAIN is
+
+	load_point(curs:STR_CURSOR):POINT is
+		x ::= curs.get_int;
+		curs.skip_over(",");
+		y ::= curs.get_int;
+		return #POINT(x, y);
+	end;
+
+	segments!:SEGMENT is
+		x, y: INT;
+		loop
+			line ::= #IN.get_str;
+			until!(#IN.eof);
+			curs ::= line.cursor;
+			-- get pair, convert to point
+			p1 ::= load_point(curs);
+			-- skip arrow " -> "
+			curs.skip_over(" -> ");
+			-- get pair, convert to point
+			p2 ::= load_point(curs);
+			-- skip angles other than 45 degree increments (either
+			-- line is vertical/horizontal and shares x or y, or
+			-- there's an equal distance between x and y)
+			if (p1.x = p2.x) or (p1.y = p2.y) or ((p1.x - p2.x).abs = (p1.y - p2.y).abs) then
+				-- create and yield segment
+				yield #SEGMENT(p1, p2);
+			end;
+		end;
+	end;
+
+	main is
+		-- iterate from first through next-through-last
+		all_points ::= #SET{POINT};
+		intersections ::= #SET{POINT};
+		loop
+			-- load and yield segments
+			seg ::= segments!;
+			loop
+				pt ::= seg.points_on_line!;
+				if all_points.has(pt) then
+					intersections.insert(pt);
+				else
+					all_points.insert(pt);
+				end;
+			end;
+		end;
+		-- output count of set
+		#OUT + intersections.size + "\n";
+	end;
+end;
