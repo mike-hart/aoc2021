@@ -1,0 +1,65 @@
+class SCHOOL is
+	attr school: ARRAY{INTI};
+	attr nursery: QUEUE{INTI};
+	attr spawn_period: INT;
+
+	create(spawn_period, nursing_time: INT, original_fish: ARRAY{INT}): SAME is
+		zero ::= #INTI(0);
+		one ::= #INTI(1);
+
+		r: SAME := new;
+		r.spawn_period := spawn_period;
+		r.school := #ARRAY{INTI}(spawn_period);
+		r.school.to_val(zero);
+		loop
+			days_until_spawn ::= original_fish.elt!;
+			r.school[days_until_spawn] := r.school[days_until_spawn] + one;
+		end;
+		r.nursery := QUEUE{INTI}::create_capacity(nursing_time);
+		loop
+			nursing_time.times!;
+			r.nursery.enq(zero);
+		end;
+		return r;
+	end;
+
+	run(days: INT) is
+		spawning ::= #INTI(0);
+		loop
+			day ::= days.times!;
+			si ::= day.mmod(spawn_period);
+			spawning := school[si];
+			school[si] := spawning + nursery.remove;
+			nursery.enq(spawning);
+		end;
+	end;
+
+	fish_count: INTI is
+		total ::= #INTI(0);
+		loop
+			total := total + school.elt!;
+		end;
+		loop
+			total := total + nursery.elt!;
+		end;
+		return total;
+	end;
+end;
+
+class MAIN is
+
+	main is
+		-- load original fish
+		inputs ::= #IN.get_str.cursor.split(',');
+		original_fish ::= #ARRAY{INT}(inputs.size);
+		loop
+			original_fish[inputs.ind!] := #INT(inputs.elt!);
+		end;
+		-- build school
+		school ::= #SCHOOL(7, 2, original_fish);
+		-- run school for 256 days
+		school.run(256);
+		-- output size of school
+		#OUT + school.fish_count + "\n";
+	end;
+end;
