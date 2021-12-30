@@ -1,0 +1,47 @@
+class MAIN is
+
+	private fuel_cost!(positions: ARRAY{INT}, position_to_reach: INT): INT is
+		loop
+			crab_position ::= positions.elt!;
+			n ::= (crab_position - position_to_reach).abs;
+			yield (n * (n + 1)) / 2;  -- item n of the arithmetic series 1,3,6,10... (sum of integers)
+		end;
+	end;
+
+	cost_at_position(crab_positions: ARRAY{INT}, position_to_reach: INT): INT is
+		cost ::= 0;
+		loop
+			cost := cost + fuel_cost!(crab_positions, position_to_reach);
+		end;
+		return cost;
+	end;
+
+	calc_cost(crab_positions: ARRAY{INT}, pos_min, pos_max: INT): INT is
+		cost_at_pos_min ::= cost_at_position(crab_positions, pos_min);
+		cost_at_pos_max ::= cost_at_position(crab_positions, pos_max);
+		if (pos_max - pos_min) = 1 then return cost_at_pos_min.min(cost_at_pos_max); end;
+		midpoint ::= ((pos_max - pos_min) / 2) + pos_min;
+		if cost_at_pos_min < cost_at_pos_max then
+			return calc_cost(crab_positions, pos_min, midpoint);
+		else
+			return calc_cost(crab_positions, midpoint, pos_max);
+		end;
+	end;
+
+	main is
+		-- load crab horizontal positions
+		inputs ::= #IN.get_str.cursor.split(',');
+		crab_positions ::= #ARRAY{INT}(inputs.size);
+		min ::= INT::maxval;
+		max ::= 0;
+		loop
+			entry ::= #INT(inputs.elt!);
+			max := entry.max(max);
+			min := entry.min(min);
+			crab_positions[inputs.ind!] := entry;
+		end;
+		total_cost: INT := calc_cost(crab_positions, min, max);
+		-- Show the total
+		#OUT + total_cost + "\n";
+	end;
+end;
