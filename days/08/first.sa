@@ -1,0 +1,48 @@
+class DIGITS < $STR is
+	attr signal, outputs: ARRAY{STR};
+
+	create(s:STR): SAME is
+		inputs ::= #ARRAY{STR}(10);
+		outputs ::= #ARRAY{STR}(4);
+		curs ::= s.cursor;
+		loop
+			inputs[inputs.ind!] := curs.get_word;
+			-- should err-check cursor here
+		end;
+		curs.skip_over(" | ");
+		loop
+			outputs[outputs.ind!] := curs.get_word;
+			-- should err-check cursor here
+		end;
+
+		r: SAME := new;
+		r.signal := inputs;
+		r.outputs := outputs;
+		return r
+	end;
+
+	str:STR is
+		return "DIGITS: " + signal + ", " + outputs + "\n";
+	end;
+end;
+
+class MAIN is
+
+	main is
+		-- read lines split into input (ten "words") vs. output (four
+		-- "words"), both groups separated by a pipe char '|'.
+		count ::= 0;
+		loop
+			line ::= #IN.get_str;
+			until!(#IN.eof);
+			digits ::= #DIGITS(line);
+			loop
+				case digits.outputs.elt!.size
+				when 2, 3, 4, 7 then count := count + 1;
+				else
+				end;
+			end;
+		end;
+		#OUT + count + "\n";
+	end;
+end;
