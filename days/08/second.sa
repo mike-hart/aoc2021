@@ -1,0 +1,162 @@
+-- Seven segment display with confused segment location references
+-- Traditionally a 7 might be described as acf, but here it could be abc
+-- work out which digits are which.
+
+class DIGITS < $STR is
+	attr signal, outputs: ARRAY{STR};
+
+	ordered_digit(s:STR):STR is
+		f ::= #FSTR(s.size);
+		a ::= #ARRAY{CHAR}(s.size);
+		loop a.aset(a.ind!, s.elt!); end;
+		a.sort;
+		loop f := f + a.elt!; end;
+		return f.str;
+	end;
+
+	create(s:STR): SAME is
+		inputs ::= #ARRAY{STR}(10);
+		outputs ::= #ARRAY{STR}(4);
+		curs ::= s.cursor;
+		loop
+			inputs[inputs.ind!] := ordered_digit(curs.get_word);
+			-- should err-check cursor here
+		end;
+		curs.skip_over(" | ");
+		loop
+			outputs[outputs.ind!] := ordered_digit(curs.get_word);
+			-- should err-check cursor here
+		end;
+
+		r: SAME := new;
+		r.signal := inputs;
+		r.outputs := outputs;
+		return r
+	end;
+
+	derive is
+		
+	end;
+
+	str:STR is
+		return "DIGITS: " + signal + ", " + outputs + "\n";
+	end;
+end;
+
+class MAIN is
+
+	is_subset_of(a, b:STR):BOOL is
+		-- Returns true when a is a subset of b in terms of characters
+		-- present
+		-- eg is_subset abefg = true
+		-- ace is_subset abefg = false
+		as ::= #SET{CHAR}(a);
+		bs ::= #SET{CHAR}(b);
+		sub ::= as.is_subset_of(bs);
+		return sub;
+	end;
+
+	intersection_size(a, b: STR): INT is
+		as ::= #SET{CHAR}(a);
+		bs ::= #SET{CHAR}(b);
+		sz ::= as.intersection(bs).size;
+		return sz;
+	end;
+
+	main is
+		-- read lines split into input (ten "words") vs. output (four
+		-- "words"), both groups separated by a pipe char '|'.
+		total ::= 0;
+		loop
+			line ::= #IN.get_str;
+			until!(#IN.eof);
+			digits ::= #DIGITS(line);
+
+			matched_digits ::= #MAP{STR, INT};
+			digit_patterns ::= #MAP{INT, STR};
+
+			loop
+				loop
+					s ::= digits.signal.elt!;
+					case s.size
+					-- Number of digit segments illuminated
+					when 2 then
+						matched_digits[s] := 1;
+						digit_patterns[1] := s;
+					when 3 then
+						matched_digits[s] := 7;
+						digit_patterns[7] := s;
+					when 4 then
+						matched_digits[s] := 4;
+						digit_patterns[4] := s;
+					when 5 then
+						-- Either 2, 3, or 5
+						-- 2 has an intersection size of 2 with 4, 3 with 6
+						-- 3 has a subset relationship with 1 and 7 which neither of the others do
+						-- 5 has an intersection size of 3 with 4, 5 with 6
+						-- So, if we have 4 or 6 we can determine the difference
+						winning_digit ::= 0;
+						if digit_patterns.has_ind(1) then
+							if is_subset_of(digit_patterns[1], s) then
+								winning_digit := 3;
+							else
+								if digit_patterns.has_ind(4) then
+									case intersection_size(digit_patterns[4], s)
+									when 2 then winning_digit := 2;
+									when 3 then winning_digit := 5;
+									end;
+								else
+									if digit_patterns.has_ind(6) then
+										case intersection_size(digit_patterns[6], s)
+										when 3 then winning_digit := 2;
+										when 5 then winning_digit := 5;
+										end;
+									end;
+								end;
+							end;
+						end;
+						if winning_digit /= 0 then
+							matched_digits[s] := winning_digit;
+							digit_patterns[winning_digit] := s;
+						end;
+					when 6 then
+						-- either 0, 6, or 9.
+						-- 9 has 1, 3, 4, 5, and 7 as
+						-- subsets of the segments in use
+						-- 6 has only 5
+						-- 0 has 1, and 7
+						if digit_patterns.has_ind(5) then
+						        -- 9 and 6 share 5 as a subset, 0 does not
+							if is_subset_of(digit_patterns[5], s) then
+								if digit_patterns.has_ind(4) then
+									-- 4 is a subset of 9 but not 6 (as is 1, 7, 3)
+									if is_subset_of(digit_patterns[4], s) then
+										matched_digits[s] := 9;
+										digit_patterns[9] := s;
+									else
+										matched_digits[s] := 6;
+										digit_patterns[6] := s;
+									end;
+								end;
+							else
+								matched_digits[s] := 0;
+								digit_patterns[0] := s;
+							end;
+						end;
+					when 7 then
+						matched_digits[s] := 8;
+						digit_patterns[8] := s;
+					end;
+				end;
+				until!(matched_digits.size = 10);
+			end;
+
+			-- Work out the output value as a number
+			output_val ::= 0;
+			loop output_val := output_val * 10 + matched_digits[digits.outputs.elt!]; end;
+
+			total := total + output_val;
+		end;
+		#OUT + total + "\n";
+	end;
+end;
